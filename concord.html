@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concord - Sovereign Policy Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --c-bg-canvas: #060608;
+        --c-surface: #0d0d11;
+        --c-surface-2: rgba(255,255,255,0.03);
+        --c-accent-yellow: #E5BB3C;
+        --c-accent-blue: #85B5D6;
+        --c-text-dark: #FFFFFF;
+        --c-text-light: rgba(255,255,255,0.52);
+        --c-border: rgba(255,255,255,0.12);
+        --c-advance: #27ae60;
+        --c-revise: #E5BB3C;
+        --c-hold: #e74c3c;
+
+        --radius-badge: 14px;
+        --space-xs: 4px;
+        --space-sm: 8px;
+        --space-md: 16px;
+        --space-lg: 32px;
+        --space-xl: 64px;
+        --space-xxl: 128px;
+
+        --clip-diagonal: polygon(0 0, 100% 0, 100% 65%, 0% 100%);
+        --clip-diagonal-reverse: polygon(0 0, 100% 0, 100% 100%, 0% 65%);
+
+        --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: var(--font-main);
+        background-color: var(--c-bg-canvas);
+        color: var(--c-text-dark);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        padding: 0;
+        min-height: 100vh;
+    }
+
+    /* Staggered display type */
+    .type-stagger {
+        display: flex;
+        flex-direction: column;
+        line-height: 0.95;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+    }
+    .type-stagger span { display: block; }
+    .type-stagger span:nth-child(2) { margin-left: 1.5em; }
+    .type-stagger span:nth-child(3) { margin-left: 0.5em; }
+    .type-stagger span:nth-child(4) { margin-left: 2.5em; }
+
+    .type-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-weight: 600;
+        color: var(--c-text-light);
+    }
+
+    .type-num-block {
+        font-weight: 700;
+        font-size: 1.5rem;
+        line-height: 1;
+        letter-spacing: -0.05em;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+    .type-num-block span.sub { font-size: 0.5em; color: var(--c-text-light); }
+
+    .badge-surface {
+        background: var(--c-surface);
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .container {
+        max-width: 100%;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--space-xl);
+    }
+
+    /* Starburst mark */
+    .shape-starburst { width: 48px; height: 48px; position: relative; }
+    .shape-starburst::before,
+    .shape-starburst::after,
+    .shape-starburst .bar {
+        content: '';
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 100%; height: 6px;
+        background: var(--c-accent-blue);
+        transform-origin: center;
+        border-radius: 2px;
+    }
+    .shape-starburst::before { transform: translate(-50%, -50%) rotate(0deg); }
+    .shape-starburst::after { transform: translate(-50%, -50%) rotate(60deg); }
+    .shape-starburst .bar { transform: translate(-50%, -50%) rotate(120deg); }
+    .shape-starburst .wedge {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 50%; height: 50%;
+        background: var(--c-accent-yellow);
+        clip-path: polygon(0 0, 100% 50%, 0 100%);
+        transform: translate(0, -50%);
+        z-index: 2;
+    }
+
+    .geo-edge-top-left {
+        position: absolute;
+        top: 0; left: 0;
+        width: 120px; height: 180px;
+        background: var(--c-accent-yellow);
+        clip-path: polygon(0 0, 100% 0, 100% 30%, 40% 30%, 40% 100%, 0 100%);
+    }
+
+    .indicator-dots { display: flex; gap: 6px; }
+    .indicator-dots span {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--c-accent-blue);
+        display: inline-block;
+    }
+    .indicator-dots span.inactive { background: transparent; border: 1px solid var(--c-accent-blue); }
+
+    .text-vertical {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        color: var(--c-text-light);
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        font-size: 0.875rem;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        letter-spacing: -0.01em;
+        border-radius: 6px;
+        cursor: pointer;
+        text-decoration: none;
+        border: none;
+        transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-dark { background: var(--c-text-dark); color: var(--c-surface); }
+    .btn-yellow { background: var(--c-accent-yellow); color: var(--c-text-dark); }
+    .btn-ghost { background: transparent; color: var(--c-text-dark); border: 1px solid var(--c-border); }
+
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-md) var(--space-xl);
+        border-bottom: 1px solid var(--c-border);
+    }
+    .brand { display: flex; align-items: center; gap: var(--space-md); }
+    .brand-name { font-size: 1.25rem; line-height: 1; }
+    .nav-links { display: flex; gap: var(--space-lg); align-items: center; }
+
+    /* Section scaffolding */
+    .section { padding: var(--space-xl); border-top: 1px solid var(--c-border); }
+    .section-head { max-width: 720px; margin-bottom: var(--space-lg); }
+    .section-head h2 {
+        font-size: 2.75rem;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        margin: var(--space-md) 0;
+    }
+    .section-head p.lead { color: var(--c-text-light); font-size: 1.05rem; max-width: 64ch; }
+
+    /* ===== GLOBE HERO (dark telemetry opener) ===== */
+    .globe-hero {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        min-height: 680px;
+        background: #000;
+        overflow: hidden;
+        cursor: grab;
+    }
+    .globe-hero:active { cursor: grabbing; }
+    /* globe lives in the right half; text sits on the left */
+    .globe-stage { position: absolute; top: 0; right: 0; width: 56%; height: 100%; cursor: grab; }
+    .globe-stage:active { cursor: grabbing; }
+    #webgl-canvas, #pretext-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    #pretext-canvas { pointer-events: none; mix-blend-mode: screen; }
+
+    /* gentle gradients: ground the left text, fade the globe into the page bottom */
+    .globe-veil {
+        position: absolute; inset: 0; z-index: 5; pointer-events: none;
+        background:
+            linear-gradient(to right, var(--c-bg-canvas) 8%, rgba(6,6,8,0.55) 34%, rgba(6,6,8,0) 56%),
+            linear-gradient(to bottom, rgba(6,6,8,0) 70%, var(--c-bg-canvas) 100%);
+    }
+
+    .globe-ui {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        padding: var(--space-lg) var(--space-xl);
+        pointer-events: none;
+    }
+    .globe-ui a, .globe-ui button { pointer-events: auto; }
+
+    .globe-nav {
+        position: absolute;
+        top: var(--space-lg);
+        left: var(--space-xl);
+        right: var(--space-xl);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    .globe-links { display: flex; gap: var(--space-lg); align-items: center; }
+    .globe-links a {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255,255,255,0.6);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    .globe-links a:hover { color: #fff; }
+
+    .globe-copy { max-width: 540px; }
+    .globe-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        text-transform: uppercase;
+        letter-spacing: 0.26em;
+        color: rgba(255,255,255,0.55);
+        margin-bottom: var(--space-md);
+    }
+    .globe-eyebrow::before {
+        content: "";
+        width: 30px; height: 1px;
+        background: var(--c-accent-yellow);
+    }
+    .globe-copy h1 {
+        color: #fff;
+        font-family: 'Bricolage Grotesque', -apple-system, sans-serif;
+        font-size: clamp(3rem, 5.6vw, 5.4rem);
+        font-weight: 700;
+        line-height: 1.0;
+        letter-spacing: -0.02em;
+        text-shadow: 0 4px 60px rgba(0,0,0,0.7);
+    }
+    /* the featured, decoding word */
+    .scramble {
+        color: var(--c-accent-yellow);
+        font-weight: 700;
+    }
+    .globe-lead {
+        color: rgba(255,255,255,0.74);
+        font-size: 1.08rem;
+        font-weight: 300;
+        line-height: 1.5;
+        max-width: 440px;
+        margin-top: var(--space-lg);
+        text-shadow: 0 1px 24px rgba(0,0,0,0.8);
+    }
+    .globe-cta {
+        display: flex; gap: var(--space-md);
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: calc(var(--space-lg) + var(--space-sm));
+    }
+    .btn-outline { background: rgba(255,255,255,0.04); color: #fff; border: 1px solid rgba(255,255,255,0.28); backdrop-filter: blur(8px); }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+
+    .globe-hint {
+        position: absolute;
+        bottom: var(--space-lg);
+        right: var(--space-xl);
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.35);
+    }
+
+    .globe-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.55);
+    }
+    .globe-status .status-left { display: flex; align-items: center; gap: 0.6rem; }
+    .pulse {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: #00FF66; box-shadow: 0 0 10px #00FF66;
+        animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .hero-content h1 { font-size: 5rem; margin-bottom: var(--space-lg); color: var(--c-text-dark); }
+    .hero-text {
+        font-size: 1.25rem;
+        color: var(--c-text-light);
+        max-width: 440px;
+        margin-bottom: var(--space-lg);
+        line-height: 1.4;
+    }
+    .hero-visual {
+        position: relative;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .hero-data-block {
+        background: var(--c-text-dark);
+        color: var(--c-surface);
+        padding: var(--space-lg);
+        border-radius: 8px;
+        width: 80%;
+        clip-path: var(--clip-diagonal);
+    }
+
+    /* Problem cards */
+    .prob-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); }
+    .prob-card {
+        padding: var(--space-lg);
+        border: 1px solid var(--c-border);
+        border-radius: 10px;
+        background: var(--c-surface-2);
+    }
+    .prob-card .type-num-block { margin-bottom: var(--space-md); }
+    .prob-card h4 { font-size: 1.05rem; letter-spacing: -0.02em; margin-bottom: var(--space-sm); }
+    .prob-card p { color: var(--c-text-light); font-size: 0.92rem; }
+
+    /* Pillars */
+    .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); }
+    .pillar-card { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+    .pillar-card.mid { border-left: 1px solid var(--c-border); border-right: 1px solid var(--c-border); }
+    .pillar-card .shape-starburst { transform: scale(0.6); transform-origin: left top; }
+    .pillar-ico {
+        width: 58px; height: 58px;
+        border: 1px solid var(--c-border);
+        border-radius: 14px;
+        background: var(--c-surface-2);
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: var(--space-sm);
+    }
+    .pillar-ico svg { width: 30px; height: 30px; }
+    .pillar-title { font-weight: 700; font-size: 1.5rem; letter-spacing: -0.03em; }
+    .pillar-desc { color: var(--c-text-light); font-size: 0.95rem; max-width: 34ch; }
+
+    .console-section {
+        padding: var(--space-xl);
+        background: var(--c-bg-canvas);
+    }
+    .console-header { margin-bottom: var(--space-lg); display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-lg); }
+    .console-ui {
+        background: var(--c-surface);
+        border-radius: var(--radius-badge);
+        display: grid;
+        grid-template-columns: 300px 1fr 330px;
+        border: 1px solid var(--c-border);
+        overflow: hidden;
+    }
+
+    /* sentence-case panel headings (no all-caps) */
+    .panel-title {
+        font-size: 0.98rem; font-weight: 600; letter-spacing: -0.01em;
+        color: var(--c-text-dark); display: flex; align-items: center; gap: 0.55rem;
+        margin-bottom: var(--space-xs);
+    }
+    .panel-title .step-no {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: var(--c-accent-yellow); color: #1a1407;
+        font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+    }
+    .panel-title .panel-sub { color: var(--c-text-light); font-weight: 400; }
+    .panel-hint { font-size: 0.78rem; color: var(--c-text-light); line-height: 1.4; margin-bottom: var(--space-lg); }
+    .stat-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-light); }
+
+    .console-levers { border-right: 1px solid var(--c-border); padding: var(--space-lg); background: var(--c-surface-2); }
+    .lever-group { margin-bottom: var(--space-lg); }
+    .lever-group:last-child { margin-bottom: 0; }
+    .lever-group.context { opacity: 0.55; }
+    .lever-label { display: block; font-size: 0.82rem; color: var(--c-text-light); margin-bottom: 4px; }
+    .lever-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--c-text-dark); }
+    .lever-value.muted { font-size: 1.1rem; color: var(--c-text-light); }
+    /* range input */
+    .lever-range { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; margin-top: 14px; border-radius: 3px; background: var(--c-border); outline: none; cursor: pointer; }
+    .lever-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--c-accent-yellow); border: 2px solid var(--c-surface); box-shadow: 0 0 0 1px var(--c-accent-yellow); cursor: grab; }
+    .lever-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--c-accent-yellow); border: 2px solid var(--c-surface); cursor: grab; }
+    .lever-range:active::-webkit-slider-thumb { cursor: grabbing; }
+    .lever-scale { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.6rem; color: var(--c-text-light); margin-top: 6px; }
+    .lever-static { height: 3px; border-radius: 3px; background: var(--c-border); margin-top: 14px; }
+    .lever-static > i { display: block; height: 100%; border-radius: 3px; background: var(--c-text-light); }
+
+    .console-main { padding: var(--space-lg); display: flex; flex-direction: column; }
+    .graph-area {
+        flex-grow: 1; position: relative; min-height: 220px; margin-bottom: var(--space-md);
+        border: 1px solid var(--c-border); border-radius: 10px;
+        background: rgba(255,255,255,0.015); overflow: hidden;
+    }
+    .graph-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .grid-line { stroke: rgba(255,255,255,0.06); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .grid-line.zero { stroke: rgba(255,255,255,0.2); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+    .series-gdp { fill: none; stroke: var(--c-accent-blue); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+    .series-fis { fill: none; stroke: var(--c-accent-yellow); stroke-width: 2; stroke-dasharray: 5 4; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .chart-legend { position: absolute; top: 12px; left: 14px; display: flex; gap: 16px; z-index: 2; }
+    .lg { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-light); }
+    .lg::before { content: ''; width: 16px; height: 2px; border-radius: 2px; }
+    .lg-gdp::before { background: var(--c-accent-blue); }
+    .lg-fis::before { background: var(--c-accent-yellow); }
+    .chart-x { position: absolute; bottom: 8px; left: 14px; right: 14px; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.55rem; color: var(--c-text-light); opacity: 0.55; }
+    .zero-tag { position: absolute; left: 14px; top: 53%; font-family: var(--font-mono); font-size: 0.55rem; color: var(--c-text-light); opacity: 0.5; }
+    .end-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 3; left: calc(100% - 8px); transition: top 0.25s ease; }
+    .end-dot.gdp { background: var(--c-accent-blue); box-shadow: 0 0 0 3px rgba(133,181,214,0.18); }
+    .end-dot.fis { background: var(--c-accent-yellow); box-shadow: 0 0 0 3px rgba(229,187,60,0.18); }
+    .graph-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+    .stat-val { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.05em; }
+
+    .console-agents { border-left: 1px solid var(--c-border); padding: 0; display: flex; flex-direction: column; }
+    .agent-row { padding: 12px var(--space-lg); border-bottom: 1px solid var(--c-border); display: flex; align-items: center; gap: var(--space-md); }
+    .agent-avatar { width: 34px; height: 34px; background: var(--c-text-dark); clip-path: var(--clip-diagonal); flex-shrink: 0; }
+    .agent-avatar.blue { background: var(--c-accent-blue); }
+    .agent-avatar.yellow { background: var(--c-accent-yellow); }
+    .agent-info { flex-grow: 1; }
+    .agent-name { font-weight: 700; font-size: 0.8rem; }
+    .agent-pos { font-size: 0.7rem; color: var(--c-text-light); }
+    .agent-vote { font-weight: 700; font-size: 1rem; }
+
+    .consensus-block {
+        padding: var(--space-md) var(--space-lg);
+        background: var(--c-surface-2); border-top: 1px solid var(--c-border);
+        flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+    }
+    .verdict { font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.1em; color: var(--c-revise); font-size: 1.1rem; transition: color 0.25s ease; }
+    .conf-text { font-size: 0.75rem; color: var(--c-text-light); margin-top: 6px; }
+    .conf-bar { height: 5px; border-radius: 4px; background: var(--c-border); margin-top: 10px; overflow: hidden; }
+    .conf-bar > i { transition: width 0.3s ease, background 0.25s ease; }
+    .record-line.approved { border-color: rgba(95,185,138,0.5); }
+    .record-line b.ok { color: var(--c-advance); }
+    .btn.is-done { background: rgba(95,185,138,0.18); color: var(--c-advance); cursor: default; }
+    .hil-row { display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap; margin-top: var(--space-md); }
+    .live-tag { display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-accent-yellow); }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-accent-yellow); box-shadow: 0 0 10px var(--c-accent-yellow); animation: blink 1.6s infinite; }
+    .conf-bar > i { display: block; height: 100%; width: 71%; background: var(--c-revise); }
+
+    .record-line {
+        font-family: var(--font-mono); font-size: 0.72rem;
+        background: rgba(0,0,0,0.4); border: 1px solid var(--c-border); border-radius: 8px; padding: 12px 14px;
+        margin-top: var(--space-md); word-break: break-all; line-height: 1.9; color: rgba(255,255,255,0.6);
+    }
+    .record-line b { color: var(--c-accent-yellow); font-weight: 600; }
+    .hil-row { display: flex; gap: var(--space-md); align-items: center; flex-wrap: wrap; margin-top: var(--space-md); }
+    .disc { font-size: 0.75rem; color: var(--c-text-light); font-style: italic; margin-top: var(--space-md); }
+
+    /* bottom grid */
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); padding: var(--space-xl); border-top: 1px solid var(--c-border); }
+    .process-list { display: flex; flex-direction: column; gap: var(--space-lg); }
+    .process-step { display: flex; gap: var(--space-md); }
+    .step-content h3 { font-size: 1.1rem; margin-bottom: var(--space-xs); }
+    .step-content p { color: var(--c-text-light); font-size: 0.9rem; }
+
+    .sovereign-record { background: var(--c-surface-2); border: 1px solid var(--c-border); color: var(--c-text-dark); padding: var(--space-lg); border-radius: 8px; position: relative; }
+    .faux-qr { width: 60px; height: 60px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 2px; margin-bottom: var(--space-md); }
+    .faux-qr div { background: var(--c-text-dark); }
+    .faux-qr div:nth-child(2), .faux-qr div:nth-child(5), .faux-qr div:nth-child(11) { opacity: 0; }
+    .sovereign-record .type-label { color: var(--c-text-light); }
+
+    /* Sovereignty 2x2 */
+    .sov-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg); }
+    .sov-item { padding: var(--space-lg); border: 1px solid var(--c-border); border-radius: 10px; }
+    .sov-item h4 { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; letter-spacing: -0.02em; margin-bottom: var(--space-sm); }
+    .sov-item h4 .mk { color: var(--c-accent-yellow); }
+    .sov-item p { color: var(--c-text-light); font-size: 0.92rem; }
+
+    /* why now */
+    .whynow { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); align-items: center; }
+    .whynow .big { font-size: 2.25rem; letter-spacing: -0.04em; line-height: 1.1; }
+    .whynow p { color: var(--c-text-light); font-size: 1.05rem; }
+
+    .cta-section { padding: var(--space-xl); text-align: center; border-top: 1px solid var(--c-border); position: relative; overflow: hidden; }
+    .cta-bg-geo { position: absolute; bottom: -50px; right: -50px; width: 300px; height: 300px; background: var(--c-accent-yellow); clip-path: polygon(100% 0, 0% 100%, 100% 100%); opacity: 0.2; z-index: 0; }
+    .cta-content { position: relative; z-index: 1; }
+    .cta-section h2 { font-size: 3rem; letter-spacing: -0.04em; margin-bottom: var(--space-md); }
+
+    footer { padding: var(--space-lg) var(--space-xl); border-top: 1px solid var(--c-border); display: flex; justify-content: space-between; gap: var(--space-lg); flex-wrap: wrap; }
+    footer .foot-note { color: var(--c-text-light); font-size: 0.72rem; max-width: 60ch; line-height: 1.7; }
+
+    @media (max-width: 900px) {
+        .globe-ui { padding: var(--space-md) var(--space-lg); }
+        .globe-links a:not(.btn) { display: none; }
+        .globe-stage { width: 100%; opacity: 0.5; }
+        .globe-copy { max-width: 100%; }
+        .globe-hint { display: none; }
+        .prob-grid, .pillars, .sov-grid, .bottom-grid, .whynow { grid-template-columns: 1fr; }
+        .console-ui { grid-template-columns: 1fr; }
+        .console-levers { border-right: none; border-bottom: 1px solid var(--c-border); }
+        .console-agents { border-left: none; border-top: 1px solid var(--c-border); }
+        .graph-stats { grid-template-columns: repeat(2, 1fr); }
+        .section, .console-section { padding: var(--space-lg); }
+        .section-head h2 { font-size: 2rem; }
+    }
+</style>
+</head>
+<body>
+
+<!-- GLOBE HERO — live surface telemetry -->
+<section class="globe-hero">
+    <div class="globe-stage" id="globe">
+        <canvas id="webgl-canvas"></canvas>
+        <canvas id="pretext-canvas"></canvas>
+    </div>
+    <div class="globe-veil"></div>
+
+    <div class="globe-ui">
+        <nav class="globe-nav">
+            <div class="brand">
+                <div class="shape-starburst">
+                    <div class="bar"></div>
+                    <div class="wedge"></div>
+                </div>
+                <div class="type-stagger brand-name" style="color:#fff;">
+                    <span>Concord</span>
+                    <span>Sovereign</span>
+                    <span>Simulation</span>
+                </div>
+            </div>
+            <div class="globe-links">
+                <a href="#approach">Approach</a>
+                <a href="#console">Console</a>
+                <a href="#how">How it works</a>
+                <a href="#sovereignty">Sovereignty</a>
+                <a href="#cta" class="btn btn-yellow">Request a briefing</a>
+            </div>
+        </nav>
+
+        <div class="globe-copy">
+            <h1>See the<br><span class="scramble" id="scramble">consequence</span><br>before the decision.</h1>
+            <p class="globe-lead">Test any policy in simulation before it is ever enacted — model its effect, let a council of AI agents deliberate, and produce a result your officials can verify and defend.</p>
+            <div class="globe-cta">
+                <a href="#cta" class="btn btn-yellow">Request a briefing</a>
+                <a href="#console" class="btn btn-outline">Explore the live console ↓</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <div class="badge-surface">
+
+        <!-- PROBLEM -->
+        <section class="section" id="approach">
+            <div class="section-head">
+                <div class="type-label">The problem</div>
+                <h2>Policy is enacted once.<br>Its effects last for years.</h2>
+                <p class="lead">Governments make high-stakes decisions — tax, subsidy, visa, tariff — with limited ability to test the outcome first. Spreadsheets miss second-order effects. Consultants take months. And a single AI model that simply hands back an answer can't be audited, challenged, or defended to the public.</p>
+            </div>
+            <div class="prob-grid">
+                <div class="prob-card">
+                    <div class="type-num-block">0_<span class="sub">1</span></div>
+                    <h4>No safe place to test.</h4>
+                    <p>There is no sandbox for a policy before it goes live.</p>
+                </div>
+                <div class="prob-card">
+                    <div class="type-num-block">0_<span class="sub">2</span></div>
+                    <h4>Black boxes don't pass scrutiny.</h4>
+                    <p>An answer no one can trace is an answer no one can stand behind.</p>
+                </div>
+                <div class="prob-card">
+                    <div class="type-num-block">0_<span class="sub">3</span></div>
+                    <h4>Foresight without provenance is just opinion.</h4>
+                    <p>A projection only matters if you can show how it was reached.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- PILLARS -->
+        <section class="section">
+            <div class="section-head">
+                <div class="type-label">What Concord does</div>
+                <h2>Three layers, one decision you can stand behind.</h2>
+            </div>
+            <div class="pillars">
+                <div class="pillar-card">
+                    <div class="pillar-ico">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 27V5" stroke="rgba(255,255,255,.28)" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M5 27H27" stroke="rgba(255,255,255,.28)" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M8 21L14 15L18.5 18L26 8" stroke="#85B5D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="26" cy="8" r="2.6" fill="#E5BB3C"/>
+                        </svg>
+                    </div>
+                    <div class="type-label">Pillar 0_1</div>
+                    <h3 class="pillar-title">Economic Simulation</h3>
+                    <p class="pillar-desc">Move a lever and a world model forecasts the ripple effects — output, jobs, and the budget — including the ones a spreadsheet misses.</p>
+                </div>
+                <div class="pillar-card mid">
+                    <div class="pillar-ico">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 16L16 5M16 16L26 11M16 16L23 26M16 16L9 26M16 16L6 11" stroke="rgba(255,255,255,.28)" stroke-width="1.3"/>
+                            <circle cx="16" cy="16" r="3.4" fill="#E5BB3C"/>
+                            <circle cx="16" cy="5" r="2.4" fill="#85B5D6"/>
+                            <circle cx="26" cy="11" r="2.4" fill="#85B5D6"/>
+                            <circle cx="23" cy="26" r="2.4" fill="#85B5D6"/>
+                            <circle cx="9" cy="26" r="2.4" fill="#85B5D6"/>
+                            <circle cx="6" cy="11" r="2.4" fill="#85B5D6"/>
+                        </svg>
+                    </div>
+                    <div class="type-label">Pillar 0_2</div>
+                    <h3 class="pillar-title">Agent Council</h3>
+                    <p class="pillar-desc">Five independent AI agents debate the trade-offs from their own mandates and reach a consensus you can inspect — not a black-box verdict.</p>
+                </div>
+                <div class="pillar-card">
+                    <div class="pillar-ico">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 3L26 6.5V15C26 21.5 21.5 25.5 16 28C10.5 25.5 6 21.5 6 15V6.5L16 3Z" stroke="#85B5D6" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M11.5 16L14.5 19L21 11.5" stroke="#E5BB3C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="type-label">Pillar 0_3</div>
+                    <h3 class="pillar-title">Verifiable & Human-in-Loop</h3>
+                    <p class="pillar-desc">Every input and vote is sealed in a tamper-evident record. People review and decide — never the machine alone.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CONSOLE -->
+        <section class="console-section" id="console">
+            <div class="console-header">
+                <div class="section-head" style="margin-bottom:0;">
+                    <div class="type-label">The live console</div>
+                    <h2>Test a policy, end to end.</h2>
+                    <p class="lead">Move the policy lever and watch the world model re-forecast, the agent council re-deliberate, and a verifiable record form — then send it to human reviewers. Everything below is a working simulation on synthetic data.</p>
+                </div>
+            </div>
+
+            <div class="console-ui">
+                <!-- 1 · LEVER -->
+                <div class="console-levers">
+                    <div class="panel-title"><span class="step-no">1</span> The policy lever</div>
+                    <p class="panel-hint">Cycling sample tax rates automatically — or grab the lever to drive it yourself.</p>
+
+                    <div class="lever-group">
+                        <label class="lever-label">Corporate tax rate</label>
+                        <div class="lever-value" id="taxVal">12.0%</div>
+                        <input type="range" id="taxRange" class="lever-range" min="8" max="16" step="1" value="12" aria-label="Corporate tax rate">
+                        <div class="lever-scale"><span>8%</span><span>16%</span></div>
+                    </div>
+
+                    <div class="lever-group context">
+                        <label class="lever-label">Energy subsidy level</label>
+                        <div class="lever-value muted">$4.2B</div>
+                        <div class="lever-static"><i style="width:42%"></i></div>
+                    </div>
+                    <div class="lever-group context">
+                        <label class="lever-label">Tourism visa openness</label>
+                        <div class="lever-value muted">150k / yr</div>
+                        <div class="lever-static"><i style="width:74%"></i></div>
+                    </div>
+                </div>
+
+                <!-- 2 · OUTCOME -->
+                <div class="console-main">
+                    <div class="panel-title"><span class="step-no">2</span> Projected outcome <span class="panel-sub">· 5-year</span></div>
+                    <div class="graph-area">
+                        <div class="chart-legend">
+                            <span class="lg lg-gdp">GDP</span>
+                            <span class="lg lg-fis">Fiscal balance</span>
+                        </div>
+                        <svg class="graph-svg" id="graphSvg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="gdpFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#85B5D6" stop-opacity="0.30"/>
+                                    <stop offset="100%" stop-color="#85B5D6" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <line class="grid-line" x1="0" y1="18" x2="100" y2="18"/>
+                            <line class="grid-line" x1="0" y1="37.3" x2="100" y2="37.3"/>
+                            <line class="grid-line zero" x1="0" y1="56.7" x2="100" y2="56.7"/>
+                            <line class="grid-line" x1="0" y1="76" x2="100" y2="76"/>
+                            <path id="gdpArea" fill="url(#gdpFill)" stroke="none"/>
+                            <path id="fisPath" class="series-fis"/>
+                            <path id="gdpPath" class="series-gdp"/>
+                        </svg>
+                        <span class="zero-tag">0%</span>
+                        <span class="end-dot gdp" id="dotGdp"></span>
+                        <span class="end-dot fis" id="dotFis"></span>
+                        <div class="chart-x"><span>Y1</span><span>Y2</span><span>Y3</span><span>Y4</span><span>Y5</span></div>
+                    </div>
+                    <div class="graph-stats">
+                        <div>
+                            <div class="stat-label">GDP impact</div>
+                            <div class="stat-val" id="mGdp">-0.4%</div>
+                        </div>
+                        <div style="border-left: 1px solid var(--c-border); padding-left:var(--space-md);">
+                            <div class="stat-label">Employment</div>
+                            <div class="stat-val" id="mEmp">-0.2%</div>
+                        </div>
+                        <div style="border-left: 1px solid var(--c-border); padding-left:var(--space-md);">
+                            <div class="stat-label">Fiscal balance</div>
+                            <div class="stat-val" id="mFis">+1.8%</div>
+                        </div>
+                        <div style="border-left: 1px solid var(--c-border); padding-left:var(--space-md);">
+                            <div class="stat-label">Risk index</div>
+                            <div class="stat-val" id="mRisk">Moderate</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3 · COUNCIL -->
+                <div class="console-agents">
+                    <div class="panel-title" style="padding:var(--space-md) var(--space-lg); border-bottom:1px solid var(--c-border);"><span class="step-no">3</span> Council deliberation</div>
+
+                    <div class="agent-row">
+                        <div class="agent-avatar blue"></div>
+                        <div class="agent-info">
+                            <div class="agent-name">Fiscal Authority</div>
+                            <div class="agent-pos" id="a0pos">Strengthens the budget position.</div>
+                        </div>
+                        <div class="agent-vote" id="a0vote">+</div>
+                    </div>
+                    <div class="agent-row">
+                        <div class="agent-avatar yellow"></div>
+                        <div class="agent-info">
+                            <div class="agent-name">Labor &amp; Employment</div>
+                            <div class="agent-pos" id="a1pos">Mild drag on hiring.</div>
+                        </div>
+                        <div class="agent-vote" id="a1vote">~</div>
+                    </div>
+                    <div class="agent-row">
+                        <div class="agent-avatar blue"></div>
+                        <div class="agent-info">
+                            <div class="agent-name">Trade &amp; Investment</div>
+                            <div class="agent-pos" id="a2pos">Stays competitive regionally.</div>
+                        </div>
+                        <div class="agent-vote" id="a2vote">+</div>
+                    </div>
+                    <div class="agent-row">
+                        <div class="agent-avatar"></div>
+                        <div class="agent-info">
+                            <div class="agent-name">Social Welfare</div>
+                            <div class="agent-pos" id="a3pos">Funds cost-of-living support.</div>
+                        </div>
+                        <div class="agent-vote" id="a3vote">+</div>
+                    </div>
+                    <div class="agent-row">
+                        <div class="agent-avatar yellow"></div>
+                        <div class="agent-info">
+                            <div class="agent-name">Risk &amp; Resilience</div>
+                            <div class="agent-pos" id="a4pos">Within tolerance.</div>
+                        </div>
+                        <div class="agent-vote" id="a4vote">+</div>
+                    </div>
+
+                    <div class="consensus-block">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="panel-title" style="margin:0;">Council consensus</span>
+                            <span class="verdict" id="verdict">REVISE</span>
+                        </div>
+                        <div class="conf-text" id="confText">Confidence 71% · how closely the agents agree</div>
+                        <div class="conf-bar"><i id="confBar" style="width:71%"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- verifiable record + human-in-the-loop -->
+            <div class="record-line" id="record">
+                run <b>#0142</b> · policy=<b>corp_tax</b> · lever=<b>12%</b> · consensus=<b>REVISE</b> · confidence=<b>71%</b> · hash=<b>9f3ac1</b> · sealed to verifiable record
+            </div>
+            <div class="hil-row">
+                <span class="live-tag"><span class="live-dot"></span> <span id="liveLabel">Auto-running sample scenarios</span></span>
+            </div>
+            <p class="disc">Illustrative simulation. All figures are synthetic and not connected to live government data.</p>
+        </section>
+
+        <!-- HOW IT WORKS + RECORD -->
+        <section class="bottom-grid" id="how">
+            <div class="process-list">
+                <div class="type-label" style="margin-bottom: var(--space-md);">How it works — Execution Flow</div>
+
+                <div class="process-step">
+                    <div class="type-num-block">0_<span class="sub">1</span></div>
+                    <div class="step-content">
+                        <h3>Define the policy.</h3>
+                        <p>State the lever and the objective in plain terms.</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="type-num-block">0_<span class="sub">2</span></div>
+                    <div class="step-content">
+                        <h3>Simulate the economy.</h3>
+                        <p>The world model projects first- and second-order effects.</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="type-num-block">0_<span class="sub">3</span></div>
+                    <div class="step-content">
+                        <h3>Convene the council.</h3>
+                        <p>Independent agents deliberate from their mandates and reach consensus.</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="type-num-block">0_<span class="sub">4</span></div>
+                    <div class="step-content">
+                        <h3>Review with humans.</h3>
+                        <p>Officials and experts inspect the reasoning and vote to approve or revise.</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="type-num-block">0_<span class="sub">5</span></div>
+                    <div class="step-content">
+                        <h3>Record the decision.</h3>
+                        <p>The full chain — inputs, votes, consensus, review — is sealed as a verifiable record.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="sovereign-record">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: var(--space-lg);">
+                        <div class="faux-qr">
+                            <div></div><div></div><div></div><div></div>
+                            <div></div><div></div><div></div><div></div>
+                            <div></div><div></div><div></div><div></div>
+                            <div></div><div></div><div></div><div></div>
+                        </div>
+                        <div class="text-vertical" style="color:var(--c-border); font-size:0.7rem;">SEALED_HASH</div>
+                    </div>
+                    <div class="type-label">Cryptographic Proof</div>
+                    <h3 style="font-size:1.5rem; margin:var(--space-xs) 0 var(--space-md) 0; letter-spacing:-0.03em;">Tamper-proof Record</h3>
+                    <p style="color:#A0A0A0; font-size:0.9rem; line-height:1.4;">Every input, simulation tick, agent deliberation, and final human vote is sealed. Complete auditability for legislative oversight.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SOVEREIGNTY -->
+        <section class="section" id="sovereignty">
+            <div class="section-head">
+                <div class="type-label">Built for sovereignty</div>
+                <h2>Built to stay under your control.</h2>
+            </div>
+            <div class="sov-grid">
+                <div class="sov-item">
+                    <h4><span class="mk">◆</span> Data sovereignty</h4>
+                    <p>Runs in your sovereign cloud or on-premises. Your data, systems, and policies never leave your jurisdiction.</p>
+                </div>
+                <div class="sov-item">
+                    <h4><span class="mk">◆</span> Full audit trail</h4>
+                    <p>Every run is versioned and tamper-evident — defensible to a minister, an auditor, or the public.</p>
+                </div>
+                <div class="sov-item">
+                    <h4><span class="mk">◆</span> Verifiable, not black-box</h4>
+                    <p>Formal verification underpins the reasoning, so a result can be checked, not just trusted.</p>
+                </div>
+                <div class="sov-item">
+                    <h4><span class="mk">◆</span> Human authority preserved</h4>
+                    <p>The council advises; people decide. Every decision keeps a human signature.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- WHY NOW -->
+        <section class="section">
+            <div class="whynow">
+                <div>
+                    <div class="type-label" style="margin-bottom:var(--space-md);">Why now</div>
+                    <div class="big">For governments becoming AI-native.</div>
+                </div>
+                <p>The most ambitious governments are putting AI at the center of how they govern. The question is no longer whether to use AI in policy — it's whether you can trust, audit, and defend what it tells you. Concord is built for exactly that: foresight a government can put its name to.</p>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta-section" id="cta">
+            <div class="cta-bg-geo"></div>
+            <div class="cta-content">
+                <div class="shape-starburst" style="margin: 0 auto var(--space-md) auto; transform: scale(0.8);">
+                    <div class="bar"></div><div class="wedge"></div>
+                </div>
+                <h2>Bring Concord to your government.</h2>
+                <p style="color: var(--c-text-light); margin-bottom: var(--space-lg);">We'll walk your team through a live simulation built around one of your own policy questions.</p>
+                <a href="#" class="btn btn-yellow">Request a briefing</a>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer>
+            <div class="brand">
+                <div class="shape-starburst" style="transform:scale(0.6); transform-origin:left center;">
+                    <div class="bar"></div><div class="wedge"></div>
+                </div>
+                <div class="type-label" style="color:var(--c-text-dark);">Concord · Sovereign Policy Simulation</div>
+            </div>
+            <div class="foot-note">
+                Illustrative product preview. Figures shown are synthetic and not connected to live government data. Confidential — prepared for government review. © 2026
+            </div>
+        </footer>
+
+    </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "pretext": "https://esm.sh/@chenglou/pretext@0.0.3"
+  }
+}
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import * as Pretext from 'pretext';
+
+  const FONT_SPEC = "11px 'Courier New', monospace";
+  const LINE_HEIGHT = 12;
+  const MASK_RESOLUTION = 256;
+
+  const sourceText = `LITHOSPHERE METRICS: NOMINAL. POLICY SANDBOX: ISOLATED. SUBDUCTION ZONE SEISMICITY: ELEVATED. CONTINENTAL CRUST THICKNESS: 35KM AVG. FISCAL BALANCE PROJECTION: RUNNING. AGENT COUNCIL: DELIBERATING. CONSENSUS CONFIDENCE: 71%. TOPOGRAPHICAL DEVIATION: WITHIN TOLERANCE. BIOME SATURATION: 78%. ATMOSPHERIC PRESSURE: 1013 HPA. TECTONIC BOUNDARY FRICTION: MODERATE. GEOMAGNETIC FIELD STRENGTH: 25 TO 65 MICROTESLAS. VERIFIABLE RECORD: SEALED. LIVE SURFACE MAPPING: ACTIVE. HUMAN REVIEW: PENDING. `.repeat(100);
+
+  const container = document.getElementById('globe');
+  const webglCanvas = document.getElementById('webgl-canvas');
+  const pretextCanvas = document.getElementById('pretext-canvas');
+  const ctx2d = pretextCanvas.getContext('2d');
+
+  let width = container.clientWidth;
+  let height = container.clientHeight;
+
+  const renderer = new THREE.WebGLRenderer({ canvas: webglCanvas, antialias: true, alpha: true });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+  camera.position.z = 5.0;
+
+  const maskScene = new THREE.Scene();
+  const maskRenderTarget = new THREE.WebGLRenderTarget(MASK_RESOLUTION, MASK_RESOLUTION);
+  const maskPixels = new Uint8Array(MASK_RESOLUTION * MASK_RESOLUTION * 4);
+
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.crossOrigin = 'anonymous';
+  const geometry = new THREE.SphereGeometry(1, 64, 64);
+  const earthGroup = new THREE.Group();
+  scene.add(earthGroup);
+
+  const mapUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+  const waterMaskUrl = 'https://unpkg.com/three-globe/example/img/earth-water.png';
+
+  textureLoader.load(mapUrl, (diffuseMap) => {
+    textureLoader.load(waterMaskUrl, (waterMask) => {
+
+      const material = new THREE.MeshPhongMaterial({
+        map: diffuseMap,
+        specularMap: waterMask,
+        specular: new THREE.Color(0x333333),
+        shininess: 15,
+      });
+      const earthMesh = new THREE.Mesh(geometry, material);
+      earthGroup.add(earthMesh);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+      scene.add(ambientLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 2.4);
+      dirLight.position.set(5, 3, 5);
+      scene.add(dirLight);
+      const fillLight = new THREE.DirectionalLight(0x9fc3e8, 0.6);
+      fillLight.position.set(-5, -2, 2);
+      scene.add(fillLight);
+
+      const maskMaterial = new THREE.ShaderMaterial({
+        uniforms: { waterMap: { value: waterMask } },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D waterMap;
+          varying vec2 vUv;
+          void main() {
+            vec4 waterColor = texture2D(waterMap, vUv);
+            if (waterColor.r < 0.5) {
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            } else {
+              gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            }
+          }
+        `
+      });
+      const maskEarthMesh = new THREE.Mesh(geometry, maskMaterial);
+      maskScene.add(maskEarthMesh);
+
+      animate();
+    });
+  });
+
+  let isDragging = false;
+  let previousMousePosition = { x: 0, y: 0 };
+  let rotationVelocity = { x: 0.001, y: 0.002 };
+
+  container.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    previousMousePosition = { x: e.offsetX, y: e.offsetY };
+  });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+      rotationVelocity.x = deltaMove.y * 0.005;
+      rotationVelocity.y = deltaMove.x * 0.005;
+      previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    width = container.clientWidth;
+    height = container.clientHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    pretextCanvas.width = width;
+    pretextCanvas.height = height;
+  });
+
+  pretextCanvas.width = width;
+  pretextCanvas.height = height;
+  const preparedText = Pretext.prepareWithSegments(sourceText, FONT_SPEC);
+
+  // concentric text rings (inner → outer): generated dense, fainter & slower outward
+  const RING_TEXTS = [
+    "POLICY TELEMETRY • AGENT CONSENSUS • VERIFIABLE RECORD • HUMAN REVIEW • ",
+    "CONCORD • SOVEREIGN POLICY SIMULATION • ",
+    "FISCAL • LABOR • TRADE • SOCIAL • RISK • RESILIENCE • ",
+    "GDP • EMPLOYMENT • FISCAL BALANCE • RISK INDEX • CONFIDENCE • ",
+    "LITHOSPHERE • BIOME • ATMOSPHERE • GEOMAGNETIC FIELD • CORE TEMP • ",
+    "SUBDUCTION • TECTONIC • CRUST • MANTLE • OCEANIC TRENCH • ",
+    "DELIBERATING • REACHING CONSENSUS • SEALING RECORD • AWAITING REVIEW • ",
+    "TAX • SUBSIDY • VISA • TARIFF • SECOND-ORDER EFFECTS • TOLERANCE • ",
+  ];
+  const RINGS = [];
+  for (let i = 0; i < 14; i++) {
+    RINGS.push({
+      mult:  1.18 + i * 0.125,
+      dir:   i % 2 ? -1 : 1,
+      // staggered, clearly different speeds per ring (not monotonic)
+      speed: 0.5 + ((i * 13) % 7) / 7 * 1.1,
+      alpha: Math.max(0.06, 0.42 - i * 0.026),
+      text:  RING_TEXTS[i % RING_TEXTS.length]
+    });
+  }
+
+  // pre-render one ring of curved text to its own canvas (done only on resize)
+  function buildRingBitmap(ring, rad) {
+    const size = Math.ceil(rad * 2) + 24;
+    const cv = document.createElement('canvas');
+    cv.width = size; cv.height = size;
+    const g = cv.getContext('2d');
+    g.font = FONT_SPEC;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(255, 255, 255, ' + ring.alpha + ')';
+    const cw = g.measureText('M').width * 1.05;
+    const total = Math.max(1, Math.floor((2 * Math.PI * rad) / cw));
+    let t = '';
+    while (t.length < total) t += ring.text;
+    t = t.substring(0, total);
+    const ang = (Math.PI * 2) / t.length;
+    g.translate(size / 2, size / 2);
+    for (let i = 0; i < t.length; i++) {
+      g.save();
+      g.rotate(i * ang);
+      g.translate(0, -rad);
+      g.fillText(t[i], 0, 0);
+      g.restore();
+    }
+    ring._cv = cv;
+    ring._half = size / 2;
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    if (!isDragging) {
+      rotationVelocity.x *= 0.95;
+      rotationVelocity.y *= 0.95;
+      if (Math.abs(rotationVelocity.y) < 0.006) rotationVelocity.y = 0.006;
+    }
+
+    earthGroup.rotation.x += rotationVelocity.x;
+    earthGroup.rotation.y += rotationVelocity.y;
+    maskScene.children[0].rotation.copy(earthGroup.rotation);
+
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+
+    renderer.setRenderTarget(maskRenderTarget);
+    renderer.render(maskScene, camera);
+
+    renderer.readRenderTargetPixels(maskRenderTarget, 0, 0, MASK_RESOLUTION, MASK_RESOLUTION, maskPixels);
+
+    ctx2d.clearRect(0, 0, width, height);
+
+    const fov = camera.fov * Math.PI / 180;
+    const vHeight = 2 * Math.tan(fov / 2) * camera.position.z;
+    const screenRadius = (1 / (vHeight / 2)) * (height / 2);
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const time = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.00022;
+
+    // Each ring is pre-rendered once to an offscreen bitmap, then only rotate-blitted
+    // per frame — keeps rotation perfectly smooth no matter how many rings.
+    for (const ring of RINGS) {
+      const rad = screenRadius * ring.mult;
+      if (!ring._cv || Math.abs((ring._rad || 0) - rad) > 0.5) {
+        ring._rad = rad;
+        buildRingBitmap(ring, rad);
+      }
+      ctx2d.save();
+      ctx2d.translate(centerX, centerY);
+      ctx2d.rotate(time * ring.dir * ring.speed);
+      ctx2d.drawImage(ring._cv, -ring._half, -ring._half);
+      ctx2d.restore();
+    }
+
+    ctx2d.font = FONT_SPEC;
+    ctx2d.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx2d.textBaseline = 'top';
+    ctx2d.textAlign = 'left';
+
+    let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+    const scaleX = MASK_RESOLUTION / width;
+    const scaleY = MASK_RESOLUTION / height;
+
+    for (let y = 0; y < height; y += LINE_HEIGHT) {
+      const maskY = Math.floor((height - 1 - y) * scaleY);
+      if (maskY < 0 || maskY >= MASK_RESOLUTION) continue;
+
+      let inLandSegment = false;
+      let segmentStartX = 0;
+
+      for (let x = 0; x < width; x += 2) {
+        const maskX = Math.floor(x * scaleX);
+        const idx = (maskY * MASK_RESOLUTION + maskX) * 4;
+        const isLand = maskPixels[idx] > 128;
+
+        if (isLand && !inLandSegment) {
+          inLandSegment = true;
+          segmentStartX = x;
+        } else if (!isLand && inLandSegment) {
+          inLandSegment = false;
+          const segmentWidth = x - segmentStartX;
+          if (segmentWidth > 15) {
+            const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
+            if (line) { ctx2d.fillText(line.text, segmentStartX, y); cursor = line.end; }
+          }
+        }
+      }
+
+      if (inLandSegment) {
+        const segmentWidth = width - segmentStartX;
+        if (segmentWidth > 15) {
+          const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
+          if (line) { ctx2d.fillText(line.text, segmentStartX, y); cursor = line.end; }
+        }
+      }
+    }
+  }
+</script>
+
+<script>
+  // Letter-decode animation for the featured word "consequence"
+  (function () {
+    const el = document.getElementById('scramble');
+    if (!el) return;
+    const finalText = el.textContent;
+    const glyphs = 'abcdefghijklmnopqrstuvwxyz';
+    let running = false;
+
+    function decode() {
+      if (running) return;
+      running = true;
+      const total = finalText.length;
+      let frame = 0;
+      const framesPerLetter = 4;   // how long until the next letter locks
+      const id = setInterval(() => {
+        const revealed = Math.floor(frame / framesPerLetter);
+        let out = '';
+        for (let i = 0; i < total; i++) {
+          const ch = finalText[i];
+          if (ch === ' ') { out += ' '; continue; }
+          if (i < revealed) out += ch;
+          else out += glyphs[(Math.random() * glyphs.length) | 0];
+        }
+        el.textContent = out;
+        frame++;
+        if (revealed >= total) {
+          el.textContent = finalText;
+          clearInterval(id);
+          running = false;
+        }
+      }, 26);
+    }
+
+    // run on load, and re-run on hover
+    decode();
+    el.addEventListener('mouseenter', decode);
+  })();
+</script>
+
+<script>
+  // ===== Interactive Test-a-policy console (synthetic data) =====
+  (function () {
+    const range = document.getElementById('taxRange');
+    if (!range) return;
+
+    const VOTE = {
+      advance: { sym: '+', color: 'var(--c-advance)' },
+      revise:  { sym: '~', color: 'var(--c-revise)' },
+      oppose:  { sym: '−', color: 'var(--c-hold)' }
+    };
+    const fmt = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(1) + '%';
+
+    function scenario(r) {
+      const gdp = (12 - r) * 0.3;
+      const emp = (12 - r) * 0.18;
+      const fis = (r - 9) * 0.6;
+      const risk = r <= 10 ? 'Elevated' : (r <= 13 ? 'Moderate' : 'Low');
+
+      const agents = [
+        r >= 12 ? ['advance', 'Strengthens the budget position.']
+                : r >= 10 ? ['revise', 'Budget gains are marginal.']
+                          : ['oppose', 'Widens the deficit.'],
+        r <= 10 ? ['advance', 'Supports hiring.']
+                : r <= 13 ? ['revise', 'Mild drag on hiring.']
+                          : ['oppose', 'Notable drag on hiring.'],
+        r <= 12 ? ['advance', 'Stays competitive regionally.']
+                : r <= 14 ? ['revise', 'Competitiveness is slipping.']
+                          : ['oppose', 'Investment-flight risk.'],
+        r >= 12 ? ['advance', 'Funds cost-of-living support.']
+                : r >= 10 ? ['revise', 'Neutral on welfare.']
+                          : ['oppose', 'Strains welfare funding.'],
+        (r >= 11 && r <= 13) ? ['advance', 'Within tolerance.']
+                             : ['revise', 'Monitor exposure.']
+      ];
+
+      const a = agents.filter(x => x[0] === 'advance').length;
+      const o = agents.filter(x => x[0] === 'oppose').length;
+      const v = agents.filter(x => x[0] === 'revise').length;
+      let verdict = 'REVISE';
+      if (o >= 2) verdict = 'HOLD';
+      else if (a >= 4 && o === 0) verdict = 'ADVANCE';
+      let conf = Math.round(55 + (a - o) * 6 - v * 2);
+      conf = Math.max(52, Math.min(89, conf));
+
+      return { gdp, emp, fis, risk, agents, verdict, conf, a, o, v };
+    }
+
+    function colorFor(verdict) {
+      return verdict === 'ADVANCE' ? 'var(--c-advance)' : verdict === 'HOLD' ? 'var(--c-hold)' : 'var(--c-revise)';
+    }
+    function signColor(n, invertGood) {
+      // for fiscal, positive is good (advance/green); for gdp/emp positive good too
+      if (n > 0.05) return 'var(--c-advance)';
+      if (n < -0.05) return 'var(--c-hold)';
+      return 'var(--c-text-light)';
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    // ---- chart drawing ----
+    const X = [0, 20, 40, 60, 80, 100];
+    const Y_MIN = -2.5, Y_MAX = 5, Y_TOP = 8, Y_BOT = 88;
+    const yMap = (v) => Y_TOP + (Y_MAX - v) / (Y_MAX - Y_MIN) * (Y_BOT - Y_TOP);
+    const ramp = [0, 0.28, 0.52, 0.72, 0.9, 1];
+    function linePath(end) {
+        return X.map((x, i) => (i ? 'L' : 'M') + x + ' ' + yMap(end * ramp[i]).toFixed(1)).join(' ');
+    }
+    function drawChart(s) {
+        const gdpD = linePath(s.gdp);
+        const fisD = linePath(s.fis);
+        $('gdpPath').setAttribute('d', gdpD);
+        $('fisPath').setAttribute('d', fisD);
+        $('gdpArea').setAttribute('d', gdpD + ' L100 100 L0 100 Z');
+        $('dotGdp').style.top = yMap(s.gdp) + '%';
+        $('dotFis').style.top = yMap(s.fis) + '%';
+    }
+
+    function render(r) {
+      const s = scenario(r);
+      $('taxVal').textContent = r.toFixed(1) + '%';
+
+      $('mGdp').textContent = fmt(s.gdp); $('mGdp').style.color = signColor(s.gdp);
+      $('mEmp').textContent = fmt(s.emp); $('mEmp').style.color = signColor(s.emp);
+      $('mFis').textContent = fmt(s.fis); $('mFis').style.color = signColor(s.fis);
+      $('mRisk').textContent = s.risk;
+      $('mRisk').style.color = s.risk === 'Low' ? 'var(--c-advance)' : s.risk === 'Elevated' ? 'var(--c-hold)' : 'var(--c-text-dark)';
+
+      drawChart(s);
+
+      s.agents.forEach((ag, i) => {
+        $('a' + i + 'pos').textContent = ag[1];
+        const vEl = $('a' + i + 'vote');
+        vEl.textContent = VOTE[ag[0]].sym;
+        vEl.style.color = VOTE[ag[0]].color;
+      });
+
+      const vc = colorFor(s.verdict);
+      $('verdict').textContent = s.verdict;
+      $('verdict').style.color = vc;
+      $('confText').textContent = 'Confidence ' + s.conf + '% · ' + s.a + ' advance · ' + s.v + ' revise · ' + s.o + ' oppose';
+      const bar = $('confBar');
+      bar.style.width = s.conf + '%';
+      bar.style.background = vc;
+
+      // verifiable record
+      const hash = (0x9f3ac1 ^ (r * 2654435761) >>> 0).toString(16).slice(-6);
+      $('record').innerHTML =
+        'run <b>#0142</b> · policy=<b>corp_tax</b> · lever=<b>' + r + '%</b> · consensus=<b>' + s.verdict +
+        '</b> · confidence=<b>' + s.conf + '%</b> · hash=<b>' + hash + '</b> · sealed to verifiable record';
+    }
+
+    // ---- auto-demo: sweep through sample rates; user can grab the lever ----
+    const stops = [12, 9, 12, 15];
+    let si = 0, cur = 12, auto = true, visible = false, timer = null;
+
+    function schedule(ms) { clearTimeout(timer); timer = setTimeout(step, ms); }
+    function step() {
+      if (!auto || !visible) return;
+      const target = stops[si];
+      if (cur !== target) {
+        cur += Math.sign(target - cur);
+        range.value = cur;
+        render(cur);
+        schedule(170);
+      } else {
+        si = (si + 1) % stops.length;
+        schedule(1700);
+      }
+    }
+
+    range.addEventListener('input', () => {
+      auto = false;
+      clearTimeout(timer);
+      const lbl = document.getElementById('liveLabel');
+      if (lbl) lbl.textContent = 'Manual control';
+      cur = parseInt(range.value, 10);
+      render(cur);
+    });
+
+    if (window.IntersectionObserver) {
+      new IntersectionObserver((entries) => {
+        visible = entries[0].isIntersecting;
+        if (visible && auto) step();
+        else clearTimeout(timer);
+      }, { threshold: 0.25 }).observe(document.getElementById('console'));
+    } else {
+      visible = true; step();
+    }
+
+    render(12);
+  })();
+</script>
+
+</body>
+</html>
