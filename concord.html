@@ -530,6 +530,60 @@
         .section, .console-section { padding: var(--space-lg); }
         .section-head h2 { font-size: 2rem; }
     }
+
+    /* ===== Briefing modal ===== */
+    .modal-overlay {
+        position: fixed; inset: 0; z-index: 100;
+        background: rgba(4, 4, 6, 0.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        padding: var(--space-lg);
+        opacity: 0; visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .modal-overlay.open { opacity: 1; visibility: visible; }
+    .modal-card {
+        position: relative;
+        width: 100%; max-width: 460px;
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: 16px;
+        padding: calc(var(--space-lg) + var(--space-sm));
+        box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        transform: translateY(12px) scale(0.98);
+        transition: transform 0.25s cubic-bezier(0.16,1,0.3,1);
+    }
+    .modal-overlay.open .modal-card { transform: none; }
+    .modal-close {
+        position: absolute; top: 14px; right: 16px;
+        background: none; border: none; color: var(--c-text-light);
+        font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 4px;
+        transition: color 0.2s ease;
+    }
+    .modal-close:hover { color: var(--c-text-dark); }
+    .modal-card h3 { font-size: 1.5rem; letter-spacing: -0.02em; margin: var(--space-xs) 0 var(--space-sm); }
+    .modal-sub { color: var(--c-text-light); font-size: 0.92rem; line-height: 1.45; margin-bottom: var(--space-lg); }
+    .field { display: block; margin-bottom: var(--space-md); }
+    .field > span { display: block; font-size: 0.78rem; color: var(--c-text-light); margin-bottom: 6px; }
+    .field > span em { font-style: normal; opacity: 0.6; }
+    .field input {
+        width: 100%; box-sizing: border-box;
+        background: var(--c-surface-2); color: var(--c-text-dark);
+        border: 1px solid var(--c-border); border-radius: 8px;
+        padding: 11px 13px; font-size: 0.92rem; font-family: var(--font-main);
+        transition: border-color 0.2s ease;
+    }
+    .field input::placeholder { color: rgba(255,255,255,0.28); }
+    .field input:focus { outline: none; border-color: var(--c-accent-yellow); }
+    .field-error { color: var(--c-hold); font-size: 0.78rem; min-height: 1.1em; margin-bottom: var(--space-sm); }
+    .modal-submit { width: 100%; justify-content: center; margin-top: var(--space-xs); }
+    .modal-fine { text-align: center; font-size: 0.7rem; color: var(--c-text-light); margin-top: var(--space-md); }
+    .modal-success { text-align: center; padding: var(--space-md) 0; }
+    .success-mark {
+        width: 54px; height: 54px; margin: 0 auto var(--space-md);
+        border-radius: 50%; background: rgba(95,185,138,0.16); color: var(--c-advance);
+        display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+    }
 </style>
 </head>
 <body>
@@ -560,7 +614,7 @@
                 <a href="#console">Console</a>
                 <a href="#how">How it works</a>
                 <a href="#sovereignty">Sovereignty</a>
-                <a href="#cta" class="btn btn-yellow">Request a briefing</a>
+                <a href="#" class="btn btn-yellow js-briefing">Request a pilot</a>
             </div>
         </nav>
 
@@ -568,7 +622,7 @@
             <h1>See the<br><span class="scramble" id="scramble">consequence</span><br>before the decision.</h1>
             <p class="globe-lead">Test any policy in simulation before it is ever enacted — model its effect, let a council of AI agents deliberate, and produce a result your officials can verify and defend.</p>
             <div class="globe-cta">
-                <a href="#cta" class="btn btn-yellow">Request a briefing</a>
+                <a href="#" class="btn btn-yellow js-briefing">Request a pilot</a>
                 <a href="#console" class="btn btn-outline">Explore the live console ↓</a>
             </div>
         </div>
@@ -909,7 +963,7 @@
                 </div>
                 <h2>Bring Concord to your government.</h2>
                 <p style="color: var(--c-text-light); margin-bottom: var(--space-lg);">We'll walk your team through a live simulation built around one of your own policy questions.</p>
-                <a href="#" class="btn btn-yellow">Request a briefing</a>
+                <a href="#" class="btn btn-yellow js-briefing">Request a pilot</a>
             </div>
         </section>
 
@@ -926,6 +980,45 @@
             </div>
         </footer>
 
+    </div>
+</div>
+
+<!-- Request a pilot — modal -->
+<div class="modal-overlay" id="briefingModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="briefingTitle">
+        <button class="modal-close" id="briefingClose" aria-label="Close">×</button>
+        <div class="modal-body" id="briefingBody">
+            <div class="type-label">Request a pilot</div>
+            <h3 id="briefingTitle">Bring Concord to your government.</h3>
+            <p class="modal-sub">Tell us who you are and we'll set up a live simulation around one of your own policy questions.</p>
+            <form id="briefingForm" novalidate>
+                <label class="field">
+                    <span>Full name</span>
+                    <input type="text" name="name" required placeholder="Jane Doe">
+                </label>
+                <label class="field">
+                    <span>Government / organization</span>
+                    <input type="text" name="org" required placeholder="Ministry of Finance">
+                </label>
+                <label class="field">
+                    <span>Work email</span>
+                    <input type="email" name="email" required placeholder="jane@gov.example">
+                </label>
+                <label class="field">
+                    <span>Policy area <em>(optional)</em></span>
+                    <input type="text" name="topic" placeholder="Corporate tax, energy subsidy…">
+                </label>
+                <div class="field-error" id="briefingError"></div>
+                <button type="submit" class="btn btn-yellow modal-submit">Request pilot</button>
+                <p class="modal-fine">Illustrative prototype · your details are not sent anywhere.</p>
+            </form>
+        </div>
+        <div class="modal-success" id="briefingSuccess" hidden>
+            <div class="success-mark">✓</div>
+            <h3>Request received.</h3>
+            <p class="modal-sub">Thank you — our team will follow up at the email you provided to schedule your pilot.</p>
+            <button type="button" class="btn btn-outline modal-submit" id="briefingDone">Close</button>
+        </div>
     </div>
 </div>
 
@@ -1110,8 +1203,54 @@
     ring._half = size / 2;
   }
 
+  // land-text is laid out into this offscreen canvas only every few frames
+  const landCanvas = document.createElement('canvas');
+  const landCtx = landCanvas.getContext('2d');
+  let landDirty = true;
+  let frameCount = 0;
+  const LAND_EVERY = 6;
+
+  function drawLandText() {
+    landCtx.clearRect(0, 0, landCanvas.width, landCanvas.height);
+    landCtx.font = FONT_SPEC;
+    landCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    landCtx.textBaseline = 'top';
+    landCtx.textAlign = 'left';
+    let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+    const scaleX = MASK_RESOLUTION / width;
+    const scaleY = MASK_RESOLUTION / height;
+    for (let y = 0; y < height; y += LINE_HEIGHT) {
+      const maskY = Math.floor((height - 1 - y) * scaleY);
+      if (maskY < 0 || maskY >= MASK_RESOLUTION) continue;
+      let inLandSegment = false;
+      let segmentStartX = 0;
+      for (let x = 0; x < width; x += 2) {
+        const maskX = Math.floor(x * scaleX);
+        const idx = (maskY * MASK_RESOLUTION + maskX) * 4;
+        const isLand = maskPixels[idx] > 128;
+        if (isLand && !inLandSegment) { inLandSegment = true; segmentStartX = x; }
+        else if (!isLand && inLandSegment) {
+          inLandSegment = false;
+          const segmentWidth = x - segmentStartX;
+          if (segmentWidth > 15) {
+            const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
+            if (line) { landCtx.fillText(line.text, segmentStartX, y); cursor = line.end; }
+          }
+        }
+      }
+      if (inLandSegment) {
+        const segmentWidth = width - segmentStartX;
+        if (segmentWidth > 15) {
+          const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
+          if (line) { landCtx.fillText(line.text, segmentStartX, y); cursor = line.end; }
+        }
+      }
+    }
+  }
+
   function animate() {
     requestAnimationFrame(animate);
+    frameCount++;
 
     if (!isDragging) {
       rotationVelocity.x *= 0.95;
@@ -1126,13 +1265,6 @@
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
 
-    renderer.setRenderTarget(maskRenderTarget);
-    renderer.render(maskScene, camera);
-
-    renderer.readRenderTargetPixels(maskRenderTarget, 0, 0, MASK_RESOLUTION, MASK_RESOLUTION, maskPixels);
-
-    ctx2d.clearRect(0, 0, width, height);
-
     const fov = camera.fov * Math.PI / 180;
     const vHeight = 2 * Math.tan(fov / 2) * camera.position.z;
     const screenRadius = (1 / (vHeight / 2)) * (height / 2);
@@ -1140,8 +1272,9 @@
     const centerY = height / 2;
     const time = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.00022;
 
-    // Each ring is pre-rendered once to an offscreen bitmap, then only rotate-blitted
-    // per frame — keeps rotation perfectly smooth no matter how many rings.
+    ctx2d.clearRect(0, 0, width, height);
+
+    // Rings — pre-rendered bitmaps, rotate-blitted every frame (smooth).
     for (const ring of RINGS) {
       const rad = screenRadius * ring.mult;
       if (!ring._cv || Math.abs((ring._rad || 0) - rad) > 0.5) {
@@ -1155,48 +1288,21 @@
       ctx2d.restore();
     }
 
-    ctx2d.font = FONT_SPEC;
-    ctx2d.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx2d.textBaseline = 'top';
-    ctx2d.textAlign = 'left';
-
-    let cursor = { segmentIndex: 0, graphemeIndex: 0 };
-    const scaleX = MASK_RESOLUTION / width;
-    const scaleY = MASK_RESOLUTION / height;
-
-    for (let y = 0; y < height; y += LINE_HEIGHT) {
-      const maskY = Math.floor((height - 1 - y) * scaleY);
-      if (maskY < 0 || maskY >= MASK_RESOLUTION) continue;
-
-      let inLandSegment = false;
-      let segmentStartX = 0;
-
-      for (let x = 0; x < width; x += 2) {
-        const maskX = Math.floor(x * scaleX);
-        const idx = (maskY * MASK_RESOLUTION + maskX) * 4;
-        const isLand = maskPixels[idx] > 128;
-
-        if (isLand && !inLandSegment) {
-          inLandSegment = true;
-          segmentStartX = x;
-        } else if (!isLand && inLandSegment) {
-          inLandSegment = false;
-          const segmentWidth = x - segmentStartX;
-          if (segmentWidth > 15) {
-            const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
-            if (line) { ctx2d.fillText(line.text, segmentStartX, y); cursor = line.end; }
-          }
-        }
-      }
-
-      if (inLandSegment) {
-        const segmentWidth = width - segmentStartX;
-        if (segmentWidth > 15) {
-          const line = Pretext.layoutNextLine(preparedText, cursor, segmentWidth);
-          if (line) { ctx2d.fillText(line.text, segmentStartX, y); cursor = line.end; }
-        }
-      }
+    // Land-mapped telemetry text — re-laid out only every LAND_EVERY frames, so it
+    // refreshes calmly instead of reflowing (jittering) on every single frame.
+    if (landCanvas.width !== (width | 0) || landCanvas.height !== (height | 0)) {
+      landCanvas.width = width | 0;
+      landCanvas.height = height | 0;
+      landDirty = true;
     }
+    if (landDirty || frameCount % LAND_EVERY === 0) {
+      renderer.setRenderTarget(maskRenderTarget);
+      renderer.render(maskScene, camera);
+      renderer.readRenderTargetPixels(maskRenderTarget, 0, 0, MASK_RESOLUTION, MASK_RESOLUTION, maskPixels);
+      drawLandText();
+      landDirty = false;
+    }
+    ctx2d.drawImage(landCanvas, 0, 0);
   }
 </script>
 
@@ -1237,6 +1343,53 @@
     // run on load, and re-run on hover
     decode();
     el.addEventListener('mouseenter', decode);
+  })();
+</script>
+
+<script>
+  // Briefing modal
+  (function () {
+    const modal = document.getElementById('briefingModal');
+    if (!modal) return;
+    const form = document.getElementById('briefingForm');
+    const body = document.getElementById('briefingBody');
+    const success = document.getElementById('briefingSuccess');
+    const errEl = document.getElementById('briefingError');
+    let lastFocus = null;
+
+    function open(e) {
+      if (e) e.preventDefault();
+      lastFocus = document.activeElement;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      body.hidden = false; success.hidden = true; errEl.textContent = '';
+      const first = form.querySelector('input');
+      setTimeout(() => first && first.focus(), 60);
+    }
+    function close() {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    document.querySelectorAll('.js-briefing').forEach(b => b.addEventListener('click', open));
+    document.getElementById('briefingClose').addEventListener('click', close);
+    document.getElementById('briefingDone').addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) close(); });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const d = new FormData(form);
+      const name = (d.get('name') || '').trim();
+      const org = (d.get('org') || '').trim();
+      const email = (d.get('email') || '').trim();
+      if (!name || !org || !email) { errEl.textContent = 'Please fill in name, organization and email.'; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; return; }
+      errEl.textContent = '';
+      body.hidden = true; success.hidden = false;
+      form.reset();
+    });
   })();
 </script>
 
