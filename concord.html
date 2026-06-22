@@ -584,6 +584,91 @@
         border-radius: 50%; background: rgba(95,185,138,0.16); color: var(--c-advance);
         display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
     }
+
+    /* ===== Research papers — horizontal scrollable rail ===== */
+    .papers-rail {
+        display: flex; gap: var(--space-md);
+        overflow-x: auto; overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        padding: 4px var(--space-xl) var(--space-md);
+        margin: 0 calc(var(--space-xl) * -1);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.2) transparent;
+    }
+    .papers-rail::-webkit-scrollbar { height: 6px; }
+    .papers-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+    .papers-rail::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+    .paper-card {
+        flex: 0 0 300px; scroll-snap-align: start;
+        display: flex; flex-direction: column;
+        border: 1px solid var(--c-border); border-radius: 12px;
+        background: var(--c-surface-2);
+        overflow: hidden;
+        text-decoration: none; color: var(--c-text-dark);
+        transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+    .paper-card:hover { border-color: var(--c-accent-yellow); transform: translateY(-4px); background: rgba(255,255,255,0.05); }
+
+    /* abstract cover — concentric arcs + brand glow (echoes the globe) */
+    .paper-thumb {
+        height: 150px;
+        position: relative; overflow: hidden;
+        border-bottom: 1px solid var(--c-border);
+        background:
+            repeating-radial-gradient(circle at 50% 135%, rgba(255,255,255,0.07) 0 1px, transparent 1px 15px),
+            radial-gradient(130% 150% at 18% 118%, var(--cov) 0%, transparent 55%),
+            #0e0e13;
+    }
+    .cov-y { --cov: rgba(229,187,60,0.32); }
+    .cov-b { --cov: rgba(133,181,214,0.32); }
+
+    .paper-body { padding: var(--space-md) var(--space-lg) var(--space-lg); display: flex; flex-direction: column; flex-grow: 1; }
+    .paper-venue {
+        font-family: var(--font-mono); font-size: 0.6rem;
+        text-transform: uppercase; letter-spacing: 0.12em;
+        color: var(--c-accent-yellow); margin-bottom: var(--space-sm);
+    }
+    .paper-card h4 { font-size: 1.02rem; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: var(--space-sm); }
+    .paper-card p { font-size: 0.84rem; color: var(--c-text-light); line-height: 1.45; flex-grow: 1; margin-bottom: var(--space-md); }
+    .paper-link { font-family: var(--font-mono); font-size: 0.72rem; color: var(--c-text-dark); letter-spacing: 0.04em; }
+    .paper-card:hover .paper-link { color: var(--c-accent-yellow); }
+    .rail-hint { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--c-text-light); opacity: 0.6; margin-top: var(--space-sm); }
+    @media (max-width: 900px) { .paper-card { flex-basis: 78%; } }
+
+    /* ===== Research partners — pinned to the bottom of the hero, single row ===== */
+    .hero-partners {
+        position: absolute;
+        left: var(--space-xl);
+        bottom: var(--space-lg);
+        right: 30%;
+        z-index: 11;
+    }
+    .hero-partners-label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(255,255,255,0.45);
+        margin-bottom: 16px;
+    }
+    .hero-partners-row {
+        display: flex; flex-wrap: nowrap;
+        align-items: center;
+        gap: clamp(20px, 2.4vw, 38px);
+    }
+    .hero-partners-row img {
+        height: 27px; width: auto;
+        opacity: 0.62;
+        filter: grayscale(1) brightness(1.7);
+        transition: opacity 0.25s ease, filter 0.25s ease;
+    }
+    .hero-partners-row img:hover { opacity: 1; filter: none; }
+    @media (max-width: 900px) {
+        .hero-partners { position: static; margin-top: var(--space-lg); right: auto; }
+        .hero-partners-row { flex-wrap: wrap; gap: 12px 18px; }
+        .hero-partners-row img { height: 15px; }
+    }
 </style>
 </head>
 <body>
@@ -614,6 +699,7 @@
                 <a href="#console">Console</a>
                 <a href="#how">How it works</a>
                 <a href="#sovereignty">Sovereignty</a>
+                <a href="#research">Research</a>
                 <a href="#" class="btn btn-yellow js-briefing">Request a pilot</a>
             </div>
         </nav>
@@ -624,6 +710,18 @@
             <div class="globe-cta">
                 <a href="#" class="btn btn-yellow js-briefing">Request a pilot</a>
                 <a href="#console" class="btn btn-outline">Explore the live console ↓</a>
+            </div>
+        </div>
+
+        <div class="hero-partners">
+            <span class="hero-partners-label">Built on research with</span>
+            <div class="hero-partners-row">
+                <img src="logos/stanford.png" alt="Stanford University">
+                <img src="logos/washington.png" alt="University of Washington">
+                <img src="logos/princeton.png" alt="Princeton University">
+                <img src="logos/cambridge.png" alt="University of Cambridge">
+                <img src="logos/mcgill.png" alt="McGill University">
+                <img src="logos/brigham.png" alt="Brigham and Women's Hospital">
             </div>
         </div>
     </div>
@@ -941,6 +1039,72 @@
                     <p>The council advises; people decide. Every decision keeps a human signature.</p>
                 </div>
             </div>
+        </section>
+
+        <!-- RESEARCH -->
+        <section class="section" id="research">
+            <div class="section-head">
+                <div class="type-label">Research</div>
+                <h2>Grounded in peer-reviewed work.</h2>
+                <p class="lead">Concord's consensus, ordering and verifiability methods build on published research from our team and academic collaborators.</p>
+            </div>
+            <div class="papers-rail">
+                <a class="paper-card" href="https://www.comp.nus.edu.sg/~lijl/papers/nopaxos-osdi16.pdf" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-y"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">OSDI '16</div>
+                        <h4>NOPaxos — Network-Ordered Paxos</h4>
+                        <p>Consensus made fast and reliable by ordering messages in the network.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+                <a class="paper-card" href="https://arxiv.org/pdf/2310.08373" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-b"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">arXiv</div>
+                        <h4>Chrono — Verifiable Causality</h4>
+                        <p>Provable causal ordering of events across distributed systems.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+                <a class="paper-card" href="https://www.usenix.org/system/files/atc25-he-yongjun.pdf" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-y"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">USENIX ATC '25</div>
+                        <h4>Resource Multiplexing for LLMs</h4>
+                        <p>Serving large models efficiently by sharing compute across workloads.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+                <a class="paper-card" href="https://dl.acm.org/doi/pdf/10.1145/3603269.3604874" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-b"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">ACM</div>
+                        <h4>NeoBFT — In-Network Ordering</h4>
+                        <p>Byzantine fault tolerance accelerated with programmable network ordering.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+                <a class="paper-card" href="https://arxiv.org/pdf/2405.13349" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-y"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">arXiv</div>
+                        <h4>Verifiable Logical Clock</h4>
+                        <p>A tamper-evident clock for ordering events you can later audit.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+                <a class="paper-card" href="https://yao.lu/ai_native.pdf" target="_blank" rel="noopener">
+                    <div class="paper-thumb cov-b"></div>
+                    <div class="paper-body">
+                        <div class="paper-venue">Whitepaper</div>
+                        <h4>Cloud-Native to AI-Native</h4>
+                        <p>How infrastructure must evolve for an AI-native generation of systems.</p>
+                        <span class="paper-link">Read PDF ↗</span>
+                    </div>
+                </a>
+            </div>
+            <div class="rail-hint">Scroll for more →</div>
         </section>
 
         <!-- WHY NOW -->
